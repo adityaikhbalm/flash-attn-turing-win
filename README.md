@@ -1,42 +1,39 @@
 # flash-attn-turing-win
 
-Builder repo: menghasilkan **wheel FlashAttention-Turing untuk Windows** lewat GitHub Actions.
+Builds a Windows wheel for [ssiu/flash-attention-turing](https://github.com/ssiu/flash-attention-turing).
 
-- Upstream: [`ssiu/flash-attention-turing`](https://github.com/ssiu/flash-attention-turing)
-- Commit di-pin: `9ef98fcb506bb1e2fe3cece50935e2935bf6b124`
-- Runner: `windows-2022` (MSVC + CUDA 12.8)
-- Target: Python 3.13 · `torch==2.8.0+cu128` · `win_amd64` · `sm_75`
+Upstream source is not vendored. The workflow fetches it at a pinned commit,
+builds on `windows-2022` with Python 3.13 and `torch==2.8.0+cu128`, and uploads
+the wheel as a build artifact.
 
-Repo ini **tidak** menyimpan source upstream. Saat build, workflow meng-checkout
-upstream pada commit yang di-pin (termasuk submodule `csrc/cutlass`).
+## Build
 
-## Kenapa Windows runner
+Actions -> `build-windows-wheel` -> Run workflow.
 
-Wheel berisi ekstensi native (`.pyd`). Build di Linux menghasilkan `.so` yang
-tidak bisa dipakai di Python Windows. Karena itu runner harus Windows dan
-Python/torch harus sama persis dengan environment target.
+The first run takes 30-60 minutes: it downloads the CUDA 12.8 toolkit, installs
+torch, and compiles cutlass plus the flash-attention kernels.
 
-## Cara pakai
+## Install
 
-1. Buka tab **Actions** → `build-windows-wheel` → **Run workflow**, atau push ke `main`.
-2. Setelah selesai, unduh artifact `flash-attn-turing-win-cp313`.
-3. Install di environment target:
+Download the artifact, then:
 
 ```powershell
-pip install <path>\flash_attn_turing-0.0.0-cp313-cp313-win_amd64.whl
+pip install flash_attn_turing-0.0.0-cp313-cp313-win_amd64.whl
 ```
 
-Atau lewat CLI:
+Or from the CLI:
 
 ```powershell
-gh run download --repo <owner>/flash-attn-turing-win -n flash-attn-turing-win-cp313 -D .\wheel
+gh run download -n flash-attn-turing-win-cp313 -D wheel
 ```
 
-## Catatan penting
+## Constraints
 
-- Wheel **hanya** cocok untuk Python 3.13 + torch 2.8.0+cu128. Ganti salah satu → build ulang.
-- Ekstensi hasil build **tidak memvalidasi dtype**. Semua tensor yang masuk harus
-  `float16` (bukan bf16) dan contiguous. Cast/transpose dilakukan di adapter
-  pemanggil, bukan di repo ini.
-- Layout API: `q, k, v` = `(batch, seqlen, nheads, headdim)`.
-- Build pertama bisa 30–60 menit (unduh CUDA + kompilasi cutlass).
+- cp313 / win_amd64, built against `torch 2.8.0+cu128`. Another Python or torch
+  version needs a rebuild, because the wheel contains a compiled `.pyd`.
+- The extension does not validate dtype. Pass `float16`, contiguous tensors in
+  `(batch, seqlen, nheads, headdim)` layout. Casting and transposing is the
+  caller's job.
+- Compiled for `sm_75` (Turing). Other architectures need their own build.
+
+Pinned upstream commit: `9ef98fcb506bb1e2fe3cece50935e2935bf6b124`
